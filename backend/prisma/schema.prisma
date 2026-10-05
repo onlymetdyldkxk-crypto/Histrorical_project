@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  QUOTE_AVAILABLE
+  PAYMENT_PENDING
+  PAYMENT_RECEIVED
+  PROCESSING
+  COMPLETED
+}
+
+enum PaymentStatus {
+  NONE
+  PENDING
+  VERIFYING
+  SUCCESSFUL
+  FAILED
+}
+
+enum DocType {
+  PDF
+  DOC
+  SLIDES
+  IMAGE
+  IMAGES
+  LINK
+  OTHER
+}
+
+enum SourceKind {
+  FILE
+  DRIVE
+}
+
+enum NotifTone {
+  INFO
+  SUCCESS
+  WARNING
+  DANGER
+}
+
+model User {
+  id           String            @id @default(uuid())
+  name         String
+  email        String            @unique
+  passwordHash String
+  role         Role              @default(USER)
+  phone        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  requests     DocRequest[]
+  notifications AppNotification[]
+
+  @@map("users")
+}
+
+model DocRequest {
+  id           String           @id
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       RequestStatus    @default(UNDER_REVIEW)
+  adminNote    String?
+  submittedAt  DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  document     SourceDoc?
+  requirements Requirements?
+  quote        Quote?
+  payment      PaymentInfo?
+  rejection    RejectionInfo?
+  completion   CompletionInfo?
+  notifications AppNotification[]
+
+  @@map("doc_requests")
+}
+
+model SourceDoc {
+  id         String     @id @default(uuid())
+  requestId  String     @unique
+  request    DocRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  kind       SourceKind
+  fileName   String
+  fileType   DocType
+  fileSize   Int?
+  fileCount  Int?       @default(1)
+  driveUrl   String?
+  storageKey String?
+
+  @@map("source_documents")
+}
+
+model Requirements {
+  id           String     @id @default(uuid())
+  requestId    String     @unique
+  request      DocRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fullName     String
+  age          String?
+  gender       String?
+  email        String
+  phone        String?
+  address      String?
+  purpose      String
+  processing   String
+  outputFormat String
+  instructions String?
+  notes        String?
+
+  @@map("requirements")
+}
+
+model Quote {
+  id                String     @id @default(uuid())
+  requestId         String     @unique
+  request           DocRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  charge            Float
+  estimatedDays     Int
+  expectedDate      DateTime
+  adminMessage      String
+  extraInstructions String?
+  sentAt            DateTime   @default(now())
+
+  @@map("quotes")
+}
+
+model PaymentInfo {
+  id                String        @id @default(uuid())
+  requestId         String        @unique
+  request           DocRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  status            PaymentStatus @default(NONE)
+  transactionId     String?
+  gatewayOrderId    String?
+  razorpayPaymentId String?
+  amount            Float?
+  currency          String        @default("INR")
+  paymentMethod     String?
+  paidAt            DateTime?
+  gatewayPayload    String?
+
+  @@map("payment_infos")
+}
+
+model RejectionInfo {
+  id         String     @id @default(uuid())
+  requestId  String     @unique
+  request    DocRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reason     String
+  message    String
+  rejectedAt DateTime   @default(now())
+
+  @@map("rejection_infos")
+}
+
+model CompletionInfo {
+  id          String     @id @default(uuid())
+  requestId   String     @unique
+  request     DocRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileLabel   String
+  note        String
+  message     String
+  storageKey  String?
+  completedAt DateTime   @default(now())
+
+  @@map("completion_infos")
+}
+
+model AppNotification {
+  id        String     @id @default(uuid())
+  forRole   Role
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String?
+  request   DocRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  tone      NotifTone  @default(INFO)
+  read      Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  @@map("app_notifications")
+}
+
+model SystemSettings {
+  id                String   @id @default("default")
+  razorpayKeyId     String?
+  razorpayKeySecret String?
+  updatedAt         DateTime @updatedAt
+
+  @@map("system_settings")
+}

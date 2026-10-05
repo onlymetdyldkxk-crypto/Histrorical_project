@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Executables & Binaries
+cloudflared.exe
+
+# Logs & System
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+historical-document-conversion-project.zip
